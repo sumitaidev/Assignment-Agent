@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: sans-serif; background: #f4f7f6; padding: 20px; max-width: 500px; margin: auto; }
+    input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+    button { background: #3498db; color: white; border: none; cursor: pointer; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Submit Your Assignment</h2>
+  <input type="text" id="studentId" placeholder="Student ID (e.g., STU001)" required>
+  <input type="text" id="studentName" placeholder="Full Name" required>
+  <input type="text" id="title" placeholder="Assignment Title" required>
+  <input type="file" id="pdfFile" accept="application/pdf" required>
+  
+  <button id="submitBtn" onclick="submitForm()">Upload PDF</button>
+  <p id="status"></p>
+
+  <script>
+    function submitForm() {
+      const fileInput = document.getElementById('pdfFile').files[0];
+      if (!fileInput) return alert("Please select a PDF file.");
+      
+      document.getElementById('status').innerText = "Uploading... please wait.";
+      document.getElementById('submitBtn').disabled = true;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // Extract just the base64 string, removing the "data:application/pdf;base64," prefix
+        const base64Data = e.target.result.split(',')[1]; 
+        
+        google.script.run
+          .withSuccessHandler(msg => {
+            document.getElementById('status').innerText = msg;
+            document.getElementById('submitBtn').disabled = false;
+          })
+          .uploadAssignmentFile(
+            document.getElementById('studentId').value,
+            document.getElementById('studentName').value,
+            document.getElementById('title').value,
+            base64Data,
+            fileInput.name
+          );
+      };
+      reader.readAsDataURL(fileInput);
+    }
+  </script>
+</body>
+</html>
