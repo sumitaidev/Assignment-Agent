@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
+    h1 { color: #2c3e50; }
+    .nav { margin-bottom: 20px; }
+    .nav button { padding: 10px 20px; margin-right: 10px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 4px; }
+    .nav button:hover { background: #2980b9; }
+    .panel { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background-color: #f8f9fa; }
+    input, select, textarea { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+    .btn-green { background: #2ecc71; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px;}
+    .btn-red { background: #e74c3c; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px;}
+    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+    .modal-content { background-color: white; margin: 10% auto; padding: 20px; width: 400px; border-radius: 8px; }
+    .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .status-Pending { background: #f1c40f; color: black; }
+    .status-Graded { background: #2ecc71; color: white; }
+    .status-Improvement { background: #e67e22; color: white; }
+    .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+
+  <h1>🎓 Assignment & Student Manager</h1>
+  
+  <div class="nav">
+    <button onclick="showPanel('assignments')">Assignments Hub</button>
+    <button onclick="showPanel('students')">Manage Students</button>
+  </div>
+
+  <!-- ASSIGNMENTS PANEL -->
+  <div id="assignments" class="panel active">
+    <h3>Assignments</h3>
+    <div class="controls">
+      <input type="text" id="searchBox" placeholder="Search by student or title..." onkeyup="filterTable()">
+      <select id="filterStatus" onchange="filterTable()">
+        <option value="All">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Graded">Graded</option>
+        <option value="Needs Improvement">Needs Improvement</option>
+      </select>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Title</th>
+          <th>Document</th>
+          <th>Status</th>
+          <th>Mark</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="assignmentBody">
+        <tr><td colspan="6">Loading assignments...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- STUDENTS PANEL -->
+  <div id="students" class="panel">
+    <h3>Students</h3>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <input type="text" id="stuName" placeholder="Student Name">
+      <input type="email" id="stuEmail" placeholder="Student Email">
+      <button class="btn-green" onclick="addStudent()">Add Student</button>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Action</th></tr></thead>
+      <tbody id="studentBody"><tr><td colspan="3">Loading students...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- GRADING MODAL -->
+  <div id="gradeModal" class="modal">
+    <div class="modal-content">
+      <h3 id="modalTitle">Grade Assignment</h3>
+      <input type="hidden" id="gradeId">
+      
+      <label>Status:</label>
+      <select id="gradeStatus">
+        <option value="Graded">Graded</option>
+        <option value="Needs Improvement">Needs Improvement</option>
+        <option value="Pending">Pending</option>
+      </select>
+      
+      <label>Mark:</label>
+      <input type="text" id="gradeMark" placeholder="e.g., 85/100 or A-">
+      
+      <label>Teacher Review / Feedback:</label>
+      <textarea id="gradeReview" rows="4" placeholder="Provide feedback..."></textarea>
+      
+      <br><br>
+      <button class="btn-green" onclick="submitGrade()">Save & Notify Student</button>
+      <button class="btn-red" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Navigation & Setup ---
+    function showPanel(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    window.onload = function() {
+      loadStudents();
+      loadAssignments();
+    };
+
+    // --- Student Logic ---
+    function loadStudents() {
+      google.script.run.withSuccessHandler(renderStudents).getStudents();
+    }
+    function renderStudents(students) {
+      const tbody = document.getElementById('studentBody');
+      tbody.innerHTML = '';
+      students.forEach(s => {
+        tbody.innerHTML += `<tr><td>${s.name}</td><td>${s.email}</td>
+          <td><button class="btn-red" onclick="removeStudent('${s.id}')">Remove</button></td></tr>`;
+      });
+    }
+    function addStudent() {
+      const name = document.getElementById('stuName').value;
+      const email = document.getElementById('stuEmail').value;
+      if(!name || !email) return alert("Fill all fields");
+      document.getElementById('studentBody').innerHTML = '<tr><td colspan="3">Adding...</td></tr>';
+      google.script.run.withSuccessHandler(renderStudents).addStudent(name, email);
+    }
+    function removeStudent(id) {
+      document.getElementById('studentBody').innerHTML = '<tr><td colspan="3">Removing...</td></tr>';
+      google.script.run.withSuccessHandler(renderStudents).removeStudent(id);
+    }
+
+    // --- Assignment Logic ---
+    let allAssignments = [];
+    function loadAssignments() {
+      google.script.run.withSuccessHandler(renderAssignments).getAssignments();
+    }
+    function renderAssignments(assignments) {
+      allAssignments = assignments; 
+      updateAssignmentTable(assignments);
+    }
+    function updateAssignmentTable(data) {
+      const tbody = document.getElementById('assignmentBody');
+      tbody.innerHTML = '';
+      data.forEach(a => {
+        let statusClass = "status-" + a.status.split(' ')[0]; // Helper for CSS classes
+        tbody.innerHTML += `<tr>
+          <td>${a.studentName}</td>
+          <td>${a.title}</td>
+          <td><a href="${a.fileUrl}" target="_blank">View File (Drive)</a></td>
+          <td><span class="status-badge ${statusClass}">${a.status}</span></td>
+          <td>${a.mark || '-'}</td>
+          <td><button class="btn-green" onclick="openGradeModal('${a.id}', '${a.status}', '${a.mark}', '${a.review}')">Review / Mark</button></td>
+        </tr>`;
+      });
+    }
+
+    // --- Search & Filter Logic ---
+    function filterTable() {
+      const search = document.getElementById('searchBox').value.toLowerCase();
+      const statusFilter = document.getElementById('filterStatus').value;
+      
+      const filtered = allAssignments.filter(a => {
+        const matchesSearch = a.studentName.toLowerCase().includes(search) || a.title.toLowerCase().includes(search);
+        const matchesStatus = statusFilter === "All" || a.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      });
+      updateAssignmentTable(filtered);
+    }
+
+    // --- Grading Modal ---
+    function openGradeModal(id, status, mark, review) {
+      document.getElementById('gradeId').value = id;
+      document.getElementById('gradeStatus').value = status === 'Pending' ? 'Graded' : status;
+      document.getElementById('gradeMark').value = mark;
+      document.getElementById('gradeReview').value = review;
+      document.getElementById('gradeModal').style.display = "block";
+    }
+    function closeModal() {
+      document.getElementById('gradeModal').style.display = "none";
+    }
+    function submitGrade() {
+      const id = document.getElementById('gradeId').value;
+      const status = document.getElementById('gradeStatus').value;
+      const mark = document.getElementById('gradeMark').value;
+      const review = document.getElementById('gradeReview').value;
+      
+      document.getElementById('gradeModal').style.display = "none";
+      document.getElementById('assignmentBody').innerHTML = '<tr><td colspan="6">Saving and Notifying Student via Gmail...</td></tr>';
+      
+      google.script.run.withSuccessHandler(renderAssignments).gradeAssignment(id, mark, review, status);
+    }
+  </script>
+</body>
+</html>
